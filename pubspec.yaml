@@ -1,0 +1,16 @@
+name: voice_models
+description: >-
+  A shared, on-disk store for speech models, so several apps fetch a model once
+  and reuse it — with each model's licence stated before it is downloaded.
+version: 0.1.0
+repository: https://github.com/lohanidamodar/voice-models
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  http: ^1.2.0
+
+dev_dependencies:
+  lints: ^5.0.0
+  test: ^1.25.0
