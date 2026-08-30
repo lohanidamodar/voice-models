@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import 'catalog.dart';
+import 'paths.dart';
 
 /// Progress while fetching, so a caller can show something honest.
 class DownloadProgress {
@@ -53,30 +54,8 @@ class ModelStore {
       return Directory(override.trim());
     }
     return Directory(
-      '${_platformDataDir()}${Platform.pathSeparator}models',
+      '${popupBitsDataDir()}${Platform.pathSeparator}models',
     );
-  }
-
-  static String _platformDataDir() {
-    final env = Platform.environment;
-    final sep = Platform.pathSeparator;
-
-    if (Platform.isWindows) {
-      // Local rather than roaming: these are large and re-downloadable, and
-      // roaming profiles are not the place for a gigabyte of weights.
-      final base = env['LOCALAPPDATA'] ??
-          '${env['USERPROFILE']}${sep}AppData${sep}Local';
-      return '$base${sep}PopupBits';
-    }
-    if (Platform.isMacOS) {
-      return '${env['HOME']}${sep}Library${sep}Application Support'
-          '${sep}PopupBits';
-    }
-    final xdg = env['XDG_DATA_HOME'];
-    final base = (xdg != null && xdg.isNotEmpty)
-        ? xdg
-        : '${env['HOME']}$sep.local${sep}share';
-    return '$base${sep}popupbits';
   }
 
   /// Where a model lives, whether or not it is there yet.

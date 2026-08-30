@@ -1,0 +1,6 @@
+tags:
+  network:
+    # Every declared file size is checked against the publisher. Skipped by
+    # default so the suite works offline; run it before publishing a catalog
+    # change, and whenever a download starts being rejected as truncated.
+    skip: "needs the network — run: dart test -t network --run-skipped"

@@ -97,7 +97,7 @@ const voiceModelCatalog = <VoiceModel>[
       ModelFile(
         'encoder.int8.onnx',
         'https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/main/encoder.int8.onnx',
-        652082176,
+        652184281,
       ),
       ModelFile(
         'decoder.int8.onnx',
@@ -129,12 +129,12 @@ const voiceModelCatalog = <VoiceModel>[
       ModelFile(
         'model.int8.onnx',
         'https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/main/model.int8.onnx',
-        250000000,
+        239233841,
       ),
       ModelFile(
         'tokens.txt',
         'https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/main/tokens.txt',
-        308000,
+        315894,
       ),
     ],
     notes: 'Smaller than Parakeet and writes numbers as digits, but punctuates '

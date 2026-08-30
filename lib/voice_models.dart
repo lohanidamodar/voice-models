@@ -9,4 +9,5 @@ library;
 
 export 'src/catalog.dart';
 export 'src/licence.dart';
+export 'src/paths.dart';
 export 'src/store.dart';
