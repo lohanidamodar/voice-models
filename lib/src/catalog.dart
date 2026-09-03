@@ -28,6 +28,7 @@ class VoiceModel {
     this.runtime = ModelRuntime.sherpaOnnx,
     this.engineFamily,
     this.features = const {},
+    this.stylePolicy = VoiceStylePolicy.none,
     this.notes,
   });
 
@@ -58,9 +59,12 @@ class VoiceModel {
   /// What this model can do beyond the basics. See [ModelFeature].
   final Set<ModelFeature> features;
 
+  /// How to describe a voice to this model, if it can be described at all.
+  final VoiceStylePolicy stylePolicy;
+
   final String? notes;
 
-  bool get canDesignVoice => features.contains(ModelFeature.voiceDesign);
+  bool get canDesignVoice => stylePolicy != VoiceStylePolicy.none;
   bool get canCloneVoice => features.contains(ModelFeature.voiceCloning);
 
   /// Whether this model claims [code], a BCP-47-ish language code.
@@ -103,14 +107,29 @@ enum ModelRuntime {
 /// An app reads these to decide what to offer: there is no point showing a
 /// box for describing a voice if the model cannot act on the description.
 enum ModelFeature {
-  /// Speaks in a voice described in words — "an older man, unhurried, warm".
-  voiceDesign,
-
   /// Copies a voice from a few seconds of reference audio.
   voiceCloning,
 
   /// Emits audio while it is still generating, rather than at the end.
   streaming,
+}
+
+/// How a model wants to be told what to sound like.
+///
+/// Recorded per model because the two that support it want it delivered
+/// differently, and getting it wrong fails silently: the description is
+/// accepted, ignored, and the voice comes out unchanged. That is much harder
+/// to notice than an error would be.
+enum VoiceStylePolicy {
+  /// Cannot be told. Only a reference recording changes the voice.
+  none,
+
+  /// A separate instruction the engine conditions on, alongside the text.
+  instruction,
+
+  /// A description in parentheses at the front of the text itself —
+  /// `(a young woman, bright)Hello.` The parenthesis is not spoken.
+  textPrefix,
 }
 
 /// The models these apps know how to fetch.
@@ -198,11 +217,8 @@ const voiceModelCatalog = <VoiceModel>[
     languages: ['*'],
     runtime: ModelRuntime.audioCpp,
     engineFamily: 'omnivoice',
-    features: {
-      ModelFeature.voiceDesign,
-      ModelFeature.voiceCloning,
-      ModelFeature.streaming,
-    },
+    features: {ModelFeature.voiceCloning, ModelFeature.streaming},
+    stylePolicy: VoiceStylePolicy.instruction,
     licence: ModelLicence.apache20,
     source: 'https://github.com/k2-fsa/OmniVoice',
     files: [
@@ -229,11 +245,11 @@ const voiceModelCatalog = <VoiceModel>[
     ],
     runtime: ModelRuntime.audioCpp,
     engineFamily: 'voxcpm2',
-    features: {
-      ModelFeature.voiceDesign,
-      ModelFeature.voiceCloning,
-      ModelFeature.streaming,
-    },
+    features: {ModelFeature.voiceCloning, ModelFeature.streaming},
+    // Measured, not assumed: passing the description as a separate
+    // instruction produces byte-identical audio, because this family reads it
+    // from the front of the text instead.
+    stylePolicy: VoiceStylePolicy.textPrefix,
     licence: ModelLicence.apache20,
     source: 'https://huggingface.co/openbmb/VoxCPM2',
     files: [
@@ -266,4 +282,31 @@ List<ModelLicence> licencesInUse() {
     seen[model.licence.name] = model.licence;
   }
   return seen.values.toList();
+}
+
+/// How to deliver [style] to a model, given its [VoiceStylePolicy].
+///
+/// Returns the text to speak and the instruction to pass alongside it. Which
+/// one carries the description depends on the model, and the difference is
+/// invisible at runtime — a model given the description the wrong way says the
+/// line in its default voice rather than complaining — so it is resolved here
+/// once instead of in each caller.
+({String text, String? instruct}) applyVoiceStyle(
+  String text,
+  String? style,
+  VoiceStylePolicy policy,
+) {
+  final wanted = style?.trim();
+  if (wanted == null || wanted.isEmpty) return (text: text, instruct: null);
+
+  return switch (policy) {
+    VoiceStylePolicy.none => (text: text, instruct: null),
+    VoiceStylePolicy.instruction => (text: text, instruct: wanted),
+    // Parentheses delimit the description, so any inside it would end the
+    // prefix early and leave the rest to be read aloud.
+    VoiceStylePolicy.textPrefix => (
+        text: '(${wanted.replaceAll(RegExp(r'[()]'), '')})$text',
+        instruct: null,
+      ),
+  };
 }

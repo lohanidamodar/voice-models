@@ -89,7 +89,18 @@ asked for:
 if (model.canDesignVoice) askForADescription();   // "an older man, unhurried"
 if (model.canCloneVoice) offerToRecordAReference();
 if (!model.speaks('ne')) warnThatNepaliWillBeWrong();
+
+// The two voices want the description delivered differently. This resolves it.
+final say = applyVoiceStyle(text, description, model.stylePolicy);
+engine.speak(say.text, instruct: say.instruct);
 ```
+
+That last part is not a nicety. OmniVoice takes the description as a separate
+instruction; VoxCPM2 reads it from the front of the text, in parentheses. Give
+VoxCPM2 the description the other way and it does not complain — it produces
+**byte-identical audio** and reports success. Measured: the same line with "an
+older man" and "a young woman" came back at 150 Hz and 281 Hz through the
+prefix, and as the same file through the instruction field.
 
 That last one is not hypothetical. VoxCPM2 covers thirty languages and Nepali
 is not among them; it would render Nepali text with Hindi pronunciation and

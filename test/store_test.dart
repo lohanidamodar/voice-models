@@ -68,6 +68,52 @@ void main() {
       }
     });
 
+    test('a description reaches each model the way it wants it', () {
+      // The bug this guards against is silent: a model given the description
+      // the wrong way speaks the line in its default voice and reports
+      // success. Measured on VoxCPM2 — the instruction field produced
+      // byte-identical audio; the text prefix moved the pitch by an octave.
+      const line = 'Hello.';
+      const style = 'an older man, unhurried';
+
+      final omni = applyVoiceStyle(line, style, VoiceStylePolicy.instruction);
+      expect(omni.text, line);
+      expect(omni.instruct, style);
+
+      final vox = applyVoiceStyle(line, style, VoiceStylePolicy.textPrefix);
+      expect(vox.text, '(an older man, unhurried)Hello.');
+      expect(vox.instruct, isNull);
+    });
+
+    test('a description with brackets cannot run off the end', () {
+      // A ')' inside the description would close the prefix early and leave
+      // the remainder to be read aloud.
+      final vox = applyVoiceStyle(
+        'Hi.',
+        'a woman (about 30) reading quickly',
+        VoiceStylePolicy.textPrefix,
+      );
+      expect(vox.text, '(a woman about 30 reading quickly)Hi.');
+    });
+
+    test('no description changes nothing', () {
+      for (final policy in VoiceStylePolicy.values) {
+        for (final empty in [null, '', '   ']) {
+          final out = applyVoiceStyle('Hi.', empty, policy);
+          expect(out.text, 'Hi.', reason: '$policy');
+          expect(out.instruct, isNull, reason: '$policy');
+        }
+      }
+    });
+
+    test('a model that cannot be described drops the description', () {
+      // Rather than smuggling it into the text of a model that would read it
+      // out loud.
+      final out = applyVoiceStyle('Hi.', 'cheerful', VoiceStylePolicy.none);
+      expect(out.text, 'Hi.');
+      expect(out.instruct, isNull);
+    });
+
     test('a model that cannot speak a language says so', () {
       // The one that matters here: VoxCPM2 is not trained on Nepali, and
       // rendering Nepali with Hindi pronunciation is worse than refusing.
