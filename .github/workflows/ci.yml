@@ -1,0 +1,15 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    uses: popupbits/.github/.github/workflows/dart-ci.yml@main
+    with:
+      # Pure Dart: the store is http and dart:io, and nothing here loads a
+      # model. The network-tagged tests are skipped by default; run them by
+      # hand before changing the catalogue.
+      sdk: dart
