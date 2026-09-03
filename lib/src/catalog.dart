@@ -211,6 +211,31 @@ const voiceModelCatalog = <VoiceModel>[
         'less well. Its licence is the publisher\'s own.',
   ),
   VoiceModel(
+    id: 'indicconformer-ne-int8',
+    name: 'IndicConformer Nepali (int8)',
+    task: ModelTask.recognition,
+    languages: ['ne'],
+    licence: ModelLicence.mitAi4Bharat,
+    source:
+        'https://huggingface.co/ai4bharat/indicconformer_stt_ne_hybrid_ctc_rnnt_large',
+    files: [
+      ModelFile(
+        'model.int8.onnx',
+        'https://github.com/lohanidamodar/voice-models/releases/download/models-2026.09/model.int8.onnx',
+        140337547,
+      ),
+      ModelFile(
+        'tokens.txt',
+        'https://github.com/lohanidamodar/voice-models/releases/download/models-2026.09/tokens.txt',
+        67605,
+      ),
+    ],
+    notes: 'The only Nepali recogniser here — Parakeet and SenseVoice do not '
+        'speak it, and neither does any audio.cpp family. Converted to ONNX '
+        'and quantised to int8 from the published PyTorch, which is why it is '
+        'served from this project rather than from Hugging Face.',
+  ),
+  VoiceModel(
     id: 'omnivoice-q8',
     name: 'OmniVoice (Q8)',
     task: ModelTask.synthesis,

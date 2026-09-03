@@ -70,4 +70,15 @@ class ModelLicence {
     notes: "Alibaba's own terms, not an OSI licence. Read them before "
         'shipping anything built on this model.',
   );
+
+  /// MIT, but with a model whose authors ask to be cited.
+  ///
+  /// The licence requires only the notice; the citation is the research
+  /// group's request, and recording it is the difference between honouring it
+  /// and forgetting.
+  static const mitAi4Bharat = ModelLicence(
+    name: 'MIT',
+    url: 'https://opensource.org/license/mit',
+    attribution: 'AI4Bharat, IIT Madras — IndicConformer',
+  );
 }
