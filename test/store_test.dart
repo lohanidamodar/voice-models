@@ -241,6 +241,90 @@ void main() {
     });
   });
 
+  group('an interrupted download', () {
+    /// Serves the tail of a file when asked for a range, the whole thing
+    /// otherwise — which is what GitHub and Hugging Face both do.
+    http.Client ranged({required List<int> body, required bool honourRange}) =>
+        MockClient.streaming((request, _) async {
+          final range = request.headers['Range'];
+          if (range != null && honourRange) {
+            final from = int.parse(range.split('=')[1].split('-')[0]);
+            return http.StreamedResponse(
+              Stream.value(body.sublist(from)),
+              206,
+              request: request,
+            );
+          }
+          return http.StreamedResponse(
+            Stream.value(body),
+            200,
+            request: request,
+          );
+        });
+
+    List<int> bodyFor(VoiceModel m) => List.filled(m.files.first.bytes, 0x41);
+
+    /// Leaves a half-written .part behind, the way a dropped connection does.
+    void leavePartial(ModelStore store, VoiceModel model, int bytes) {
+      final dir = store.directoryFor(model)..createSync(recursive: true);
+      File('${dir.path}${Platform.pathSeparator}${model.files.first.name}.part')
+          .writeAsBytesSync(List.filled(bytes, 0x41));
+    }
+
+    test('picks up where it stopped instead of starting again', () async {
+      final body = bodyFor(small);
+      var served = 0;
+      final client = MockClient.streaming((request, _) async {
+        final from =
+            int.parse(request.headers['Range']!.split('=')[1].split('-')[0]);
+        served = body.length - from;
+        return http.StreamedResponse(
+          Stream.value(body.sublist(from)),
+          206,
+          request: request,
+        );
+      });
+
+      final store = ModelStore(root: root, client: client);
+      leavePartial(store, small, 1000);
+      await store.ensure(small);
+
+      expect(store.has(small), isTrue);
+      expect(served, body.length - 1000,
+          reason: 'the first 1000 bytes should not have been fetched twice');
+      store.dispose();
+    });
+
+    test('starts over when the server ignores the range', () async {
+      // Some servers answer 200 with the whole file. Appending that to what is
+      // already on disk would produce a file of the right length made of the
+      // wrong bytes.
+      final store = ModelStore(
+        root: root,
+        client: ranged(body: bodyFor(small), honourRange: false),
+      );
+      leavePartial(store, small, 1000);
+      await store.ensure(small);
+
+      expect(store.has(small), isTrue);
+      store.dispose();
+    });
+
+    test('discards a leftover longer than the file itself', () async {
+      // Not the file we think it is, so resuming from its end would ask for a
+      // range past the end and never complete.
+      final store = ModelStore(
+        root: root,
+        client: ranged(body: bodyFor(small), honourRange: true),
+      );
+      leavePartial(store, small, small.files.first.bytes + 500);
+      await store.ensure(small);
+
+      expect(store.has(small), isTrue);
+      store.dispose();
+    });
+  });
+
   group('a truncated download', () {
     test('is rejected rather than left looking finished', () async {
       // The failure this guards against surfaces much later, inside the

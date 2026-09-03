@@ -149,22 +149,40 @@ class ModelStore {
     int alreadyReceived,
     void Function(DownloadProgress)? onProgress,
   ) async {
+    // Pick up where an interrupted attempt stopped. These are hundreds of
+    // megabytes; starting a 640 MB model again from zero because a laptop
+    // slept is a bad way to spend somebody's connection.
+    var resumeFrom = target.existsSync() ? target.lengthSync() : 0;
+    if (resumeFrom >= file.bytes) {
+      // Longer than expected means it is not the file we think it is.
+      resumeFrom = 0;
+    }
+
     final request = http.Request('GET', Uri.parse(file.url));
+    if (resumeFrom > 0) request.headers['Range'] = 'bytes=$resumeFrom-';
+
     final http.StreamedResponse response;
     try {
       response = await _client.send(request);
     } catch (e) {
       throw ModelDownloadFailed(model, 'Could not reach ${file.url} — $e');
     }
-    if (response.statusCode != 200) {
+
+    // 206 means the server honoured the range and is sending the remainder.
+    // 200 means it ignored it and is sending the whole file, so what is on
+    // disk has to go rather than being prepended to a second copy.
+    final resuming = resumeFrom > 0 && response.statusCode == 206;
+    if (response.statusCode != 200 && response.statusCode != 206) {
       throw ModelDownloadFailed(
         model,
         '${file.url} returned HTTP ${response.statusCode}.',
       );
     }
 
-    final sink = target.openWrite();
-    var written = 0;
+    final sink = target.openWrite(
+      mode: resuming ? FileMode.append : FileMode.write,
+    );
+    var written = resuming ? resumeFrom : 0;
     try {
       await for (final chunk in response.stream) {
         sink.add(chunk);

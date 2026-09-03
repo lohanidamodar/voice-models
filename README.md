@@ -75,6 +75,11 @@ is downloaded to `.part`, checked against its expected size, and only then
 renamed. `has()` re-checks sizes rather than mere existence, and a half-written
 model reports as not installed.
 
+An interrupted download resumes rather than starting again, which matters when
+a model is several hundred megabytes and a laptop sleeps. If the server ignores
+the range request and sends the whole file, what was on disk is discarded — the
+alternative is a file of the right length made of the wrong bytes.
+
 There is no checksum yet. Size catches a truncated download, which is the
 failure that actually happens; it would not catch a tampered one. Anyone
 serving these over an untrusted network should add one.
