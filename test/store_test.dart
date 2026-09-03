@@ -145,6 +145,15 @@ void main() {
   });
 
   group('location', () {
+    test('opens no connection just to be created', () {
+      // A widget test fails outright if a real HttpClient is constructed, and
+      // asking what is installed needs no network.
+      final store = ModelStore(root: root);
+      expect(store.installed(), isEmpty);
+      expect(store.usedBytes(), 0);
+      store.dispose();
+    });
+
     test('is shared, not per app', () {
       // The whole point: several apps resolve to the same directory so a model
       // is fetched once.

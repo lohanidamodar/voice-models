@@ -41,10 +41,22 @@ class DownloadProgress {
 class ModelStore {
   ModelStore({Directory? root, http.Client? client})
       : root = root ?? defaultRoot(),
-        _client = client ?? http.Client();
+        _given = client;
 
   final Directory root;
-  final http.Client _client;
+
+  /// Supplied by a caller — a test, usually. Kept apart from [_opened] so
+  /// [dispose] closes only what this store created.
+  final http.Client? _given;
+  http.Client? _opened;
+
+  /// Opened on the first download, not in the constructor.
+  ///
+  /// Asking a store what is already installed is the common case and needs no
+  /// network at all. It also means a widget test can construct one: Flutter's
+  /// test binding fails any test that creates a real HttpClient, and a store
+  /// that opened one eagerly failed tests that never downloaded anything.
+  http.Client get _client => _given ?? (_opened ??= http.Client());
 
   /// `POPUPBITS_MODELS` overrides everything, for a shared drive or a machine
   /// where the data directory is small.
@@ -187,7 +199,10 @@ class ModelStore {
     return total;
   }
 
-  void dispose() => _client.close();
+  void dispose() {
+    _opened?.close();
+    _opened = null;
+  }
 }
 
 /// The user said no to a model's licence.
