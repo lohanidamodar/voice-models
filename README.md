@@ -42,16 +42,26 @@ different sets of terms, one of which is not an open-source licence at all, and
 an MIT-licensed *program* says nothing about the terms of a model it fetches at
 runtime.
 
-| model | licence | obligation |
-|---|---|---|
-| Silero VAD | [MIT](https://github.com/snakers4/silero-vad) | none beyond the notice |
-| Parakeet TDT 0.6b v3 | [CC-BY-4.0](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) | **credit NVIDIA** |
-| SenseVoice Small | [FunASR Model Open Source License Agreement v1.1](https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE) | **Alibaba's own terms — read them** |
+| model | does | licence | obligation |
+|---|---|---|---|
+| Silero VAD | finds speech | [MIT](https://github.com/snakers4/silero-vad) | none beyond the notice |
+| Parakeet TDT 0.6b v3 | recognises | [CC-BY-4.0](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) | **credit NVIDIA** |
+| SenseVoice Small | recognises | [FunASR Model Open Source License Agreement v1.1](https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE) | **Alibaba's own terms — read them** |
+| OmniVoice | speaks | [Apache-2.0](https://github.com/k2-fsa/OmniVoice) | keep the notice |
+| VoxCPM2 | speaks | [Apache-2.0](https://huggingface.co/openbmb/VoxCPM2) | keep the notice |
 
-A caveat worth knowing: the sherpa-onnx *conversions* on Hugging Face declare
-no licence of their own, so the upstream model's terms are the ones that apply.
-Each entry in the catalog therefore records `source` — the original model, not
-the conversion — so the terms can be checked at the source.
+The two voices are the easy ones: Apache-2.0 covers the weights as well as the
+code, so they can be shipped commercially with nothing more than the notice.
+They are also the only two here that can be *told* what to sound like — see
+`ModelFeature.voiceDesign`.
+
+A caveat worth knowing: the files are conversions, and a conversion repository
+does not necessarily carry the model's licence. The sherpa-onnx ones declare
+none at all; the audio.cpp GGUF repository declares `license: other` at the top
+and then, sensibly, publishes the original licence per model. Either way the
+upstream terms are the ones that apply, so each catalog entry records `source`
+— the original model, not the conversion — and that is where the licence in
+the table above was read from.
 
 If you ship something built on these, the obligations are yours. `ModelLicence`
 carries `requiresAttribution` and the exact credit line so an attribution
@@ -68,6 +78,23 @@ model reports as not installed.
 There is no checksum yet. Size catches a truncated download, which is the
 failure that actually happens; it would not catch a tampered one. Anyone
 serving these over an untrusted network should add one.
+
+## What a model can do
+
+Weights differ in more than quality. An entry records which engine loads it
+(`runtime`, and `engineFamily` where the loader needs one), and what it can be
+asked for:
+
+```dart
+if (model.canDesignVoice) askForADescription();   // "an older man, unhurried"
+if (model.canCloneVoice) offerToRecordAReference();
+if (!model.speaks('ne')) warnThatNepaliWillBeWrong();
+```
+
+That last one is not hypothetical. VoxCPM2 covers thirty languages and Nepali
+is not among them; it would render Nepali text with Hindi pronunciation and
+sound plausible while being wrong. So its languages are enumerated, while
+OmniVoice — six hundred-odd — is recorded as `*`.
 
 ## Adding a model
 

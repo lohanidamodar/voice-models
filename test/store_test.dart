@@ -55,6 +55,42 @@ void main() {
       expect(sense.licence.summary, contains('publisher terms'));
     });
 
+    test('a voice model says whether it can be prompted', () {
+      // The app shows a box for describing a voice only if the model can act
+      // on the description; guessing from the name would be a lottery.
+      final voices = modelsFor(ModelTask.synthesis);
+      expect(voices, isNotEmpty);
+      for (final voice in voices) {
+        expect(voice.runtime, ModelRuntime.audioCpp, reason: voice.id);
+        expect(voice.engineFamily, isNotNull, reason: voice.id);
+        expect(voice.canDesignVoice, isTrue, reason: voice.id);
+        expect(voice.canCloneVoice, isTrue, reason: voice.id);
+      }
+    });
+
+    test('a model that cannot speak a language says so', () {
+      // The one that matters here: VoxCPM2 is not trained on Nepali, and
+      // rendering Nepali with Hindi pronunciation is worse than refusing.
+      final vox = modelById('voxcpm2-q8')!;
+      expect(vox.speaks('en'), isTrue);
+      expect(vox.speaks('hi'), isTrue);
+      expect(vox.speaks('ne'), isFalse);
+
+      // OmniVoice claims everything, which is why it stays the default.
+      expect(modelById('omnivoice-q8')!.speaks('ne'), isTrue);
+    });
+
+    test('a recogniser is not offered as a voice', () {
+      expect(
+        modelsFor(ModelTask.recognition).map((m) => m.id),
+        contains('parakeet-tdt-0.6b-v3-int8'),
+      );
+      expect(
+        modelsFor(ModelTask.synthesis).map((m) => m.id),
+        isNot(contains('parakeet-tdt-0.6b-v3-int8')),
+      );
+    });
+
     test('a licence needing credit says who to credit', () {
       final parakeet = modelById('parakeet-tdt-0.6b-v3-int8')!;
       expect(parakeet.licence.requiresAttribution, isTrue);

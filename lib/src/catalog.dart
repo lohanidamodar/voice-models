@@ -25,6 +25,9 @@ class VoiceModel {
     required this.files,
     required this.licence,
     required this.source,
+    this.runtime = ModelRuntime.sherpaOnnx,
+    this.engineFamily,
+    this.features = const {},
     this.notes,
   });
 
@@ -46,7 +49,27 @@ class VoiceModel {
   /// Where the weights come from, for anyone who wants to check.
   final String source;
 
+  final ModelRuntime runtime;
+
+  /// The loader's name for this model's architecture, where the runtime needs
+  /// one. `omnivoice`, `voxcpm2`. Null for runtimes that infer it.
+  final String? engineFamily;
+
+  /// What this model can do beyond the basics. See [ModelFeature].
+  final Set<ModelFeature> features;
+
   final String? notes;
+
+  bool get canDesignVoice => features.contains(ModelFeature.voiceDesign);
+  bool get canCloneVoice => features.contains(ModelFeature.voiceCloning);
+
+  /// Whether this model claims [code], a BCP-47-ish language code.
+  ///
+  /// A model listed as `*` claims everything, which is how the massively
+  /// multilingual ones are recorded — enumerating six hundred codes would be
+  /// noise, and the honest answer for the long tail is "it will try".
+  bool speaks(String code) =>
+      languages.contains('*') || languages.contains(code);
 
   int get bytes => files.fold(0, (sum, f) => sum + f.bytes);
 
@@ -61,6 +84,34 @@ class VoiceModel {
 }
 
 enum ModelTask { recognition, synthesis, voiceActivity }
+
+/// Which engine knows how to load a model.
+///
+/// Part of the catalog rather than each app's own lookup table: "what loads
+/// this" is a property of the file, and duplicating it per app is how one of
+/// them ends up passing a GGUF to an ONNX runtime.
+enum ModelRuntime {
+  /// ONNX graphs driven through sherpa-onnx.
+  sherpaOnnx,
+
+  /// GGUF driven through audio.cpp, which names a family per model.
+  audioCpp,
+}
+
+/// What a model can be asked to do beyond plain synthesis or recognition.
+///
+/// An app reads these to decide what to offer: there is no point showing a
+/// box for describing a voice if the model cannot act on the description.
+enum ModelFeature {
+  /// Speaks in a voice described in words — "an older man, unhurried, warm".
+  voiceDesign,
+
+  /// Copies a voice from a few seconds of reference audio.
+  voiceCloning,
+
+  /// Emits audio while it is still generating, rather than at the end.
+  streaming,
+}
 
 /// The models these apps know how to fetch.
 ///
@@ -140,7 +191,66 @@ const voiceModelCatalog = <VoiceModel>[
     notes: 'Smaller than Parakeet and writes numbers as digits, but punctuates '
         'less well. Its licence is the publisher\'s own.',
   ),
+  VoiceModel(
+    id: 'omnivoice-q8',
+    name: 'OmniVoice (Q8)',
+    task: ModelTask.synthesis,
+    languages: ['*'],
+    runtime: ModelRuntime.audioCpp,
+    engineFamily: 'omnivoice',
+    features: {
+      ModelFeature.voiceDesign,
+      ModelFeature.voiceCloning,
+      ModelFeature.streaming,
+    },
+    licence: ModelLicence.apache20,
+    source: 'https://github.com/k2-fsa/OmniVoice',
+    files: [
+      ModelFile(
+        'omnivoice-q8_0.gguf',
+        'https://huggingface.co/audio-cpp/audio.cpp-gguf/resolve/main/OmniVoice-GGUF/omnivoice-q8_0.gguf',
+        1350288416,
+      ),
+    ],
+    notes: 'Over six hundred languages, Nepali among them, which is why this '
+        'is the default. Clones from a few seconds of reference audio.',
+  ),
+  VoiceModel(
+    id: 'voxcpm2-q8',
+    name: 'VoxCPM2 (Q8)',
+    task: ModelTask.synthesis,
+    // The thirty it is trained on. Deliberately enumerated rather than '*':
+    // Nepali is absent, and a model that renders Nepali with Hindi
+    // pronunciation is worse than one that says it cannot.
+    languages: [
+      'ar', 'da', 'de', 'el', 'en', 'es', 'fi', 'fr', 'he', 'hi', //
+      'id', 'it', 'ja', 'km', 'ko', 'lo', 'ms', 'my', 'nl', 'no', //
+      'pl', 'pt', 'ru', 'sv', 'sw', 'th', 'tl', 'tr', 'vi', 'zh',
+    ],
+    runtime: ModelRuntime.audioCpp,
+    engineFamily: 'voxcpm2',
+    features: {
+      ModelFeature.voiceDesign,
+      ModelFeature.voiceCloning,
+      ModelFeature.streaming,
+    },
+    licence: ModelLicence.apache20,
+    source: 'https://huggingface.co/openbmb/VoxCPM2',
+    files: [
+      ModelFile(
+        'voxcpm2-q8_0.gguf',
+        'https://huggingface.co/audio-cpp/audio.cpp-gguf/resolve/main/VoxCPM2-GGUF/voxcpm2-q8_0.gguf',
+        2955000480,
+      ),
+    ],
+    notes: '2B parameters against OmniVoice\'s 0.6B, and 48 kHz output. Better '
+        'English, but no Nepali, and slower.',
+  ),
 ];
+
+/// The models that can do [task], in the order an app should offer them.
+List<VoiceModel> modelsFor(ModelTask task) =>
+    voiceModelCatalog.where((m) => m.task == task).toList(growable: false);
 
 VoiceModel? modelById(String id) {
   for (final model in voiceModelCatalog) {
